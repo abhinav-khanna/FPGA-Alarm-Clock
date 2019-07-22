@@ -1,0 +1,291 @@
+module counter(sec0,sec1,min0,min1,clk,reset,turn_on,set_alarm,stop,snooze,a_to_g,an, dp, alarm_ring, mode);
+
+input  [3:0]sec0;
+input  [3:0]sec1;
+input [3:0]min0;
+input [2:0]min1;
+input clk,reset;
+input turn_on;
+input set_alarm;
+input stop;
+input snooze;
+input mode;
+reg [3:0]sec0_out=4'b0000;
+reg [3:0]sec1_out=4'b0000;
+reg [3:0]min0_out=4'b0000;
+reg [2:0]min1_out=3'b000;
+output reg [6:0] a_to_g;
+ output reg [3:0] an;
+ output wire dp;
+output reg [15:0]alarm_ring=16'b0000_0000_0000_0000;
+
+//reg snooze_counter[]
+
+ 
+reg [26:0] clkdiv=27'b0000_0000_0000_0000_0000_0000_000;
+
+wire s0,s1,m0,m1;
+assign s0=sec0;
+assign s1=sec1;
+assign m0=min0;
+assign m1=min1;
+
+
+reg [5:0]tsec=6'b000000;
+reg [5:0]tmin=6'b000000;
+
+reg [5:0]alarm_sec=6'b111111;
+reg [5:0]alarm_min=6'b111111;
+reg [5:0] tmin1;
+reg [5:0] tsec1;
+reg [5:0] tmin2;
+reg [5:0] tsec2;
+reg scount = 0;
+reg scount1 = 0;
+reg scount2 = 0;
+reg snooze1=0;
+
+always @(posedge clk)
+ begin
+ if(reset)
+ begin
+  tsec=6'b000000;
+  tmin=6'b000000;
+ end
+    if(turn_on)
+    begin
+     tsec<=10*sec1+sec0;
+     tmin<=10*min1+min0;
+    end
+  
+    if(set_alarm)
+     begin
+      alarm_sec<=10*sec1+sec0;
+      alarm_min<=10*min1+min0;
+     end
+   
+    
+ 
+    else
+     begin
+     if(clkdiv==27'b0000_0000_0000_0000_0000_0000_000)
+       begin
+        if(tsec>=59)
+        begin
+         tsec<=0;
+         tmin<=tmin+1;
+        end
+       else if(reset)
+       begin
+        tsec<=0;
+        tmin<=0;
+       end
+        else
+         begin
+          tsec<=tsec+1;
+         end
+        //tmin<=tmin+1;
+       end
+     end
+      sec0_out=tsec%10;
+       sec1_out=(tsec/10)%10;
+       min0_out=tmin%10;
+       min1_out=(tmin/10)%10;
+ end
+
+
+always @(posedge clk)
+ begin
+ if(mode==0)
+ begin
+  if(clkdiv==27'b1111_1111_1111_1111_1111_1111_111||reset)
+   begin
+    clkdiv<=27'b0000_0000_0000_0000_0000_0000_000;
+   end
+ 
+   else
+    begin
+     clkdiv<=clkdiv+1;
+    end
+// end
+// wire[15:0] alarm_ring1;
+//  always @(posedge clk)
+// begin
+  if((tsec==alarm_sec)&&(tmin==alarm_min))
+   begin
+    alarm_ring=16'b0000_0000_0000_1111;
+    tsec2 = tsec;
+    tmin2 = tmin;
+   end
+//  else if(tsec==alarm_sec&&tmin==alarm_min+1)
+//      begin
+//       alarm_ring=16'b0000_0000_0000_0000;
+//      end
+   else if(stop)
+               begin
+                alarm_ring=16'b0000_0000_0000_0000;
+               end
+   else if(snooze)
+              begin
+                 //alarm_min1 = alarm_min1+1;
+                 //alarm_sec1 = 6'b00000;
+                 scount = 1;
+                 if(scount == 1)
+                    scount1 = 1;
+                 snooze1 = 1;
+                 tsec1 = tsec;
+                 tmin1 = tmin;
+                 alarm_ring = 16'b0000_0000_0000_0000;
+              end
+     else if(snooze1 == 1 && tsec1==tsec && tmin == (tmin1+1) && scount==1 && scount1==0)//if snooze has been pressed once and one minute is over
+         begin
+            //snooze1 = 0;
+            alarm_ring = 16'b0000_0000_0000_1111;//turn on the alarm
+         end
+     else if(snooze1 == 1 && tsec1==tsec && tmin == (tmin1+2) && scount == 1 && scount1 == 0)//if snooze has been pressed once and two minutes are over
+                  begin
+                     //snooze1 = 0;
+                     alarm_ring = 16'b0000_0000_0001_1111;//light one more led second state of alarm
+                  end
+      else if(snooze1 == 1 && tsec1==tsec && tmin == (tmin1+3) && scount == 1 && scount1 == 0)//if snooze has been pressed once and three minutes are over
+           begin
+              //snooze1 = 0;
+              alarm_ring = 16'b0000_0000_0000_0000;//turn off the alarm
+            end
+     else if(snooze1 == 1 && tsec1==tsec && tmin == (tmin1+1) && scount==1 && scount1==1)//if snooze has been pressed twice and one minute is over
+                     begin
+                        //snooze1 = 0;
+                        alarm_ring = 16'b0000_0000_0000_1111;//turn on the alarm
+                     end
+     else if(snooze1 == 1 && tsec1==tsec && tmin == (tmin1+2) && scount == 1 && scount1 == 1)//if snooze has been pressed twice and two minutes are over
+                              begin
+                                 //snooze1 = 0;
+                                 alarm_ring = 16'b0000_0000_0001_1111;//light one more led second state of alarm
+                              end
+     else if(snooze1 == 1 && tsec1==tsec && tmin == (tmin1+3) && scount == 1 && scount1 == 1)//if snooze has been pressed twice and three minutes are over
+                       begin
+                          //snooze1 = 0;
+                          alarm_ring = 16'b0000_0000_0000_0000;//turn off the alarm
+                        end
+     else if(alarm_ring == 16'b0000_0000_0000_1111 && snooze1==0 &&tsec2==tsec && tmin == (tmin2+1) )//snooze has not been pressed till now even once and 1 minute over
+     begin
+        alarm_ring = 16'b0000_0000_0001_1111;//light one more led
+     end
+     else if(alarm_ring == 16'b0000_0000_0001_1111 && snooze1==0 &&tsec2==tsec && tmin == (tmin2+2) )//snooze has not been pressed till now even once and 2 minutes over
+        begin
+            alarm_ring = 16'b0000_0000_0000_0000;//turn off the alarm
+        end
+    
+  else
+  begin
+  end
+   end
+   else
+   begin
+      if(clkdiv==27'b1111_1111_1111_1111_1111_1111_111||reset)
+      begin
+       clkdiv<=27'b0000_0000_0000_0000_0000_0000_000;
+      end
+      else if(sec0[0]==0)
+       begin 
+        clkdiv<=clkdiv+1;
+       end
+   end
+   end
+ 
+// always @ ( posedge clk)
+// begin
+// alarm_ring <= alarm_ring1;
+// end
+//// always @(posedge clk)
+// begin
+//  if(tsec==alarm_sec&&tmin==alarm_min)
+//   begin
+//    alarm_ring=16'b1111_1111_1111_1111;
+//   end
+ 
+//  if(tsec==alarm_sec&&tmin==alarm_min+1)
+//   begin
+//    alarm_ring=16'b0000_0000_0000_0000;
+//   end
+ 
+//   if(stop)
+//         begin
+//          alarm_ring=16'b0000_0000_0000_0000;
+//         end
+ 
+// end
+ 
+ 
+// always @(posedge clk)
+//  begin
+//   if()
+//  end
+ 
+ 
+ 
+ 
+ 
+ wire [1:0] s;   
+ reg [3:0] digit;
+ wire [3:0] aen;
+ reg [19:0] clkdiv1;
+ 
+ assign dp = 1;
+ assign s = clkdiv1[19:18];
+ assign aen = 4'b1111; // all turned off initially
+ 
+ // quad 4to1 MUX.
+ 
+ 
+ always @(posedge clk)// or posedge clr)
+  
+     case(s)
+     0:digit = sec0_out[3:0]; // s is 00 -->0 ;  digit gets assigned 4 bit value assigned to x[3:0]
+     1:digit = sec1_out[3:0]; // s is 01 -->1 ;  digit gets assigned 4 bit value assigned to x[7:4]
+     2:digit = min0_out[3:0]; // s is 10 -->2 ;  digit gets assigned 4 bit value assigned to x[11:8
+     3:digit = min1_out[2:0]; // s is 11 -->3 ;  digit gets assigned 4 bit value assigned to x[15:12]
+  
+  
+     endcase
+  
+     //decoder or truth-table for 7a_to_g display values
+     always @(*)
+ 
+ case(digit)
+ 
+ 
+ //////////<---MSB-LSB<---
+ //////////////gfedcba////////////////////////////////////////////              a
+ 0:a_to_g = 7'b1000000;////0000                                                   __                 
+ 1:a_to_g = 7'b1111001;////0001                                                f/      /b
+ 2:a_to_g = 7'b0100100;////0010                                                  g
+ //                                                                           __ 
+ 3:a_to_g = 7'b0110000;////0011                                              e /   /c
+ 4:a_to_g = 7'b0011001;////0100                                                 __
+ 5:a_to_g = 7'b0010010;////0101                                               d
+ 6:a_to_g = 7'b0000010;////0110
+ 7:a_to_g = 7'b1111000;////0111
+ 8:a_to_g = 7'b0000000;////1000
+ 9:a_to_g = 7'b0010000;////1001
+ 'hA:a_to_g = 7'b0111111; // dash-(g)
+ 'hB:a_to_g = 7'b1111111; // all turned off
+ 'hC:a_to_g = 7'b1110111;
+ 
+ default: a_to_g = 7'b0000000; // U
+ 
+ endcase
+ 
+ 
+ always @(*)begin
+ an=4'b1111;
+ if(aen[s] == 1)
+ an[s] = 0;
+ end
+
+ 
+ always @(posedge clk) begin
+ clkdiv1 <= clkdiv1+1;
+ end
+
+endmodule
